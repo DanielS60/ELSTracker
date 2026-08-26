@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elite Level Sales — CRM</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Brand tokens — from ELS Brand Guidelines.pptx */
+:root{
+  --red:#CC1E1E; --gold:#E8C040; --green:#22AA22;
+  --shield-gold:#C9A030; --deep-red:#991515; --deep-green:#167016;
+  --shield:#0A0A1E; --card:#1A1A1A; --card-mid:#222222;
+  --white:#FFFFFF; --grey:#888888; --black:#0A0A0A;
+  --line:rgba(255,255,255,.09);
+  --display:'Montserrat',Impact,sans-serif;
+  --body:Carlito,Calibri,'Segoe UI',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--body);background:var(--black);color:var(--white);line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+a{color:var(--gold)}
+::selection{background:var(--gold);color:var(--black)}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+aside{background:var(--card);border-right:1px solid var(--line);padding:20px 16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:11px;margin-bottom:26px;padding:0 4px}
+.brand img{width:84px;height:auto}
+.brand b{font-family:var(--display);font-weight:900;font-size:11px;letter-spacing:.04em;line-height:1.2;text-transform:uppercase}
+.brand .e{color:var(--red)}.brand .l{color:var(--gold)}.brand .s{color:var(--green)}
+nav button{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:6px;
+  color:var(--grey);font-size:14.5px;text-align:left;margin-bottom:3px;transition:background .15s,color .15s}
+nav button:hover{background:var(--card-mid);color:var(--white)}
+nav button.on{background:rgba(34,170,34,.13);color:var(--green);font-weight:700}
+nav .sep{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#5c5c5c;margin:18px 0 8px;padding-left:12px}
+
+main{padding:26px 30px 60px;overflow-x:hidden}
+.head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:25px;letter-spacing:-.01em}
+.sub{color:var(--grey);font-size:14px;margin-top:2px}
+.view{display:none}.view.on{display:block}
+
+/* ---------- bits ---------- */
+.btn{background:var(--green);color:#fff;font-family:var(--display);font-weight:900;text-transform:uppercase;
+  font-size:12.5px;letter-spacing:.05em;padding:11px 20px;border-radius:5px;
+  box-shadow:0 3px 0 var(--deep-green);transition:transform .1s,box-shadow .1s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--deep-green)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--deep-green)}
+.btn.ghost{background:transparent;color:var(--gold);border:1px solid var(--shield-gold);box-shadow:none}
+.btn.ghost:hover{background:rgba(232,192,64,.1)}
+.btn.danger{background:var(--red);box-shadow:0 3px 0 var(--deep-red)}
+.btn.sm{padding:7px 13px;font-size:11px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:20px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+
+.stat b{display:block;font-family:var(--display);font-weight:900;font-size:31px;line-height:1}
+.stat span{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
+.stat.green b{color:var(--green)} .stat.gold b{color:var(--gold)} .stat.red b{color:var(--red)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);
+  padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--card-mid);cursor:pointer}
+
+.pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  padding:4px 9px;border-radius:100px;white-space:nowrap}
+.s-New{background:rgba(136,136,136,.2);color:#bbb}
+.s-Contacted{background:rgba(232,192,64,.16);color:var(--gold)}
+.s-Booked{background:rgba(34,170,34,.16);color:var(--green)}
+.s-Showed{background:rgba(34,170,34,.28);color:#5de35d}
+.s-Closed{background:var(--green);color:#fff}
+.s-Lost{background:rgba(204,30,30,.18);color:#ef6d6d}
+
+.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;background:var(--card-mid);color:var(--grey)}
+.tag.ok{background:rgba(34,170,34,.16);color:var(--green)}
+.tag.warn{background:rgba(232,192,64,.16);color:var(--gold)}
+.tag.bad{background:rgba(204,30,30,.18);color:#ef6d6d}
+
+label{display:block;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--grey);
+  margin-bottom:6px;font-weight:700}
+input,select,textarea{width:100%;background:var(--black);border:1px solid var(--line);border-radius:5px;
+  padding:11px 12px;font-size:14.5px;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--green)}
+textarea{resize:vertical;min-height:84px;line-height:1.6}
+.field{margin-bottom:14px}
+.row{display:flex;gap:12px}.row>*{flex:1}
+
+.banner{display:flex;align-items:center;gap:12px;padding:13px 17px;border-radius:8px;margin-bottom:20px;font-size:14px}
+.banner.warn{background:rgba(232,192,64,.1);border:1px solid rgba(232,192,64,.45);color:var(--gold)}
+.banner.live{background:rgba(34,170,34,.1);border:1px solid rgba(34,170,34,.45);color:var(--green)}
+
+/* kanban */
+.board{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:12px;overflow-x:auto;padding-bottom:10px}
+.col{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:12px;min-height:240px}
+.col h3{font-family:var(--display);font-weight:900;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:11px;display:flex;justify-content:space-between;align-items:center}
+.col h3 em{font-style:normal;color:var(--grey);font-size:11px}
+.lead{background:var(--card-mid);border:1px solid var(--line);border-radius:7px;padding:11px;margin-bottom:8px;
+  cursor:pointer;transition:border-color .15s,transform .1s}
+.lead:hover{border-color:var(--shield-gold);transform:translateY(-2px)}
+.lead b{font-size:14px;display:block}
+.lead small{color:var(--grey);font-size:12px}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(4,4,4,.8);backdrop-filter:blur(5px);z-index:50;display:none}
+.scrim.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--card);
+  border-left:1px solid var(--shield-gold);z-index:60;transform:translateX(101%);
+  transition:transform .26s ease;overflow-y:auto;padding:24px}
+.drawer.on{transform:none}
+.drawer .x{position:absolute;top:16px;right:18px;color:var(--grey);font-size:20px;line-height:1}
+.drawer .x:hover{color:#fff}
+
+.thread{display:flex;flex-direction:column;gap:9px;margin:14px 0}
+.msg{max-width:82%;padding:10px 13px;border-radius:11px;font-size:13.5px;line-height:1.5}
+.msg.out{align-self:flex-end;background:rgba(34,170,34,.16);border:1px solid rgba(34,170,34,.35);border-bottom-right-radius:3px}
+.msg.in{align-self:flex-start;background:var(--card-mid);border:1px solid var(--line);border-bottom-left-radius:3px}
+.msg .meta{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin-top:6px}
+
+.empty{text-align:center;color:var(--grey);padding:44px 20px;font-size:14px}
+.muted{color:var(--grey)}
+.small{font-size:12.5px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.counter{font-size:11.5px;color:var(--grey);margin-top:6px}
+.counter.over{color:var(--gold)}
+hr{border:none;border-top:1px solid var(--line);margin:18px 0}
+
+.step-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:9px}
+.step-row input[type=number]{width:110px;flex:none}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120%);
+  background:var(--card);border:1px solid var(--green);color:#fff;padding:13px 22px;border-radius:8px;
+  z-index:200;transition:transform .25s;font-size:14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.toast.on{transform:translateX(-50%)}
+.toast.err{border-color:var(--red)}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  aside nav{display:flex;flex-wrap:wrap;gap:5px;width:100%}
+  aside nav button{width:auto}
+  nav .sep{display:none}
+  .brand{margin-bottom:10px}
+  .g4,.g3,.g2{grid-template-columns:1fr 1fr}
+  main{padding:18px 16px 50px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside>
+    <div class="brand">
+      <img src="assets/logo.png" alt="">
+      <b><span class="e">Elite</span> <span class="l">Level</span><br><span class="s">Sales</span> CRM</b>
+    </div>
+    <nav id="nav">
+      <div class="sep">Pipeline</div>
+      <button data-view="dashboard" class="on">Dashboard</button>
+      <button data-view="pipeline">Pipeline</button>
+      <button data-view="contacts">Contacts</button>
+      <button data-view="reports">Weekly report</button>
+      <div class="sep">Messaging</div>
+      <button data-view="messages">Message log</button>
+      <button data-view="automations">Automations</button>
+      <button data-view="templates">Templates</button>
+      <div class="sep">Config</div>
+      <button data-view="settings">Settings</button>
+    </nav>
+  </aside>
+
+  <main>
+    <div id="modeBanner"></div>
+
+    <!-- DASHBOARD -->
+    <section class="view on" id="v-dashboard">
+      <div class="head"><div><h1>Dashboard</h1><p class="sub">Live pipeline and SMS queue</p></div>
+        <button class="btn" onclick="App.newContact()">+ New lead</button></div>
+      <div class="grid g4" id="statCards"></div>
+      <div style="margin-top:18px" class="grid g2">
+        <div class="card"><h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Pipeline breakdown</h3><div id="statusBars"></div></div>
+        <div class="card"><h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Next messages to go out</h3><div id="upcoming"></div></div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section class="view" id="v-pipeline">
+      <div class="head"><div><h1>Pipeline</h1><p class="sub">Click a lead to open it. Moving a lead to a new stage can fire an automation.</p></div>
+        <button class="btn" onclick="App.newContact()">+ New lead</button></div>
+      <div class="board" id="board"></div>
+    </section>
+
+    <!-- CONTACTS -->
+    <section class="view" id="v-contacts">
+      <div class="head"><div><h1>Contacts</h1><p class="sub" id="contactCount"></p></div>
+        <div style="display:flex;gap:9px">
+          <input id="search" placeholder="Search name, phone, email…" style="width:230px" oninput="App.loadContacts()">
+          <button class="btn" onclick="App.newContact()">+ New lead</button>
+        </div></div>
+      <div class="card" style="padding:0;overflow-x:auto"><table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Source</th><th>SMS</th><th>Added</th></tr></thead>
+        <tbody id="contactRows"></tbody></table></div>
+    </section>
+
+    <!-- MESSAGES -->
+    <section class="view" id="v-messages">
+      <div class="head"><div><h1>Message log</h1><p class="sub">Everything queued, sent, received or failed</p></div>
+        <button class="btn ghost" onclick="App.runQueue()">Run queue now</button></div>
+      <div class="card" style="padding:0;overflow-x:auto"><table>
+        <thead><tr><th>When</th><th>Contact</th><th>Dir</th><th>Message</th><th>Status</th><th></th></tr></thead>
+        <tbody id="msgRows"></tbody></table></div>
+    </section>
+
+    <!-- AUTOMATIONS -->
+    <section class="view" id="v-automations">
+      <div class="head"><div><h1>Automations</h1><p class="sub">Sequences that fire on a trigger and send SMS on a delay</p></div>
+        <button class="btn" onclick="App.newAutomation()">+ New sequence</button></div>
+      <div id="autoList" class="grid" style="gap:14px"></div>
+    </section>
+
+    <!-- TEMPLATES -->
+    <section class="view" id="v-templates">
+      <div class="head"><div><h1>Templates</h1><p class="sub">Reusable one-off messages. Use {{first_name}} to personalise.</p></div>
+        <button class="btn" onclick="App.newTemplate()">+ New template</button></div>
+      <div id="tplList" class="grid g2"></div>
+    </section>
+
+    <!-- WEEKLY REPORT -->
+    <section class="view" id="v-reports">
+      <div class="head">
+        <div><h1>Weekly report</h1><p class="sub" id="weekLabel">—</p></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn ghost sm" onclick="App.shiftWeek(-1)">← Previous</button>
+          <button class="btn ghost sm" onclick="App.shiftWeek(1)">Next →</button>
+          <button class="btn ghost sm" onclick="App.shiftWeek(0)">This week</button>
+          <button class="btn" onclick="App.exportCsv()">Export CSV</button>
+        </div>
+      </div>
+      <div class="grid g4" id="repCards"></div>
+      <div style="margin-top:18px" class="grid g2">
+        <div class="card">
+          <h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">Funnel</h3>
+          <div id="repFunnel"></div>
+        </div>
+        <div class="card" style="padding:0">
+          <h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:20px 20px 6px">Every number</h3>
+          <table><tbody id="repTable"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings">
+      <div class="head"><div><h1>Settings</h1><p class="sub">Twilio credentials, sending mode and quiet hours</p></div></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">Twilio</h3>
+          <div class="field"><label>Account SID</label><input id="set_sid" placeholder="AC…"></div>
+          <div class="field"><label>Auth token</label><input id="set_token" type="password" placeholder="••••••••"></div>
+          <div class="field"><label>From number (your Twilio number)</label><input id="set_from" placeholder="+353…"></div>
+          <div class="field"><label>Your mobile — rings first on a call</label><input id="set_agent" placeholder="+353…">
+            <p class="counter">Click-to-call rings this phone, you answer, then it dials the lead and bridges you.</p></div>
+          <p class="small muted">Inbound webhook — point your Twilio number's "A message comes in" at:<br>
+            <span class="mono" id="hookUrl"></span><br>This is what makes STOP work automatically.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">Sending</h3>
+          <div class="field"><label>Mode</label>
+            <select id="set_dry">
+              <option value="1">Dry run — record only, never actually send</option>
+              <option value="0">Live — send real SMS via Twilio</option>
+            </select></div>
+          <div class="row">
+            <div class="field"><label>Quiet from (hour)</label><input id="set_qs" type="number" min="0" max="23"></div>
+            <div class="field"><label>Quiet until (hour)</label><input id="set_qe" type="number" min="0" max="23"></div>
+          </div>
+          <p class="small muted">Messages that come due inside quiet hours are held and sent at the end of the window — no 3am texts.</p>
+          <hr>
+          <button class="btn" onclick="App.saveSettings()">Save settings</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" onclick="App.closeDrawer()"></div>
+<div class="drawer" id="drawer"><div id="drawerBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

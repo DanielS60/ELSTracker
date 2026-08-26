@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Elite Level Sales CRM</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Carlito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#CC1E1E; --gold:#E8C040; --green:#22AA22; --deep-green:#167016;
+  --card:#1A1A1A; --black:#0A0A0A;
+  --white:#FFF; --grey:#888; --line:rgba(255,255,255,.09);
+  --display:'Montserrat',Impact,sans-serif;
+  --body:Carlito,Calibri,'Segoe UI',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:var(--body);background:var(--black);color:var(--white);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 30%,rgba(232,192,64,.09),transparent 60%);
+}
+.box{
+  position:relative;background:var(--card);border:1px solid var(--line);
+  border-radius:11px;padding:38px 34px;width:100%;max-width:390px;
+  box-shadow:0 30px 80px rgba(0,0,0,.7);
+}
+.brand{display:flex;align-items:center;gap:13px;margin-bottom:26px}
+.brand img{width:78px;height:auto}
+.brand b{font-family:var(--display);font-weight:900;font-size:12px;line-height:1.25;text-transform:uppercase;letter-spacing:.03em}
+.brand .e{color:var(--red)}.brand .l{color:var(--gold)}.brand .s{color:var(--green)}
+h1{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:20px;margin-bottom:6px}
+p.sub{color:var(--grey);font-size:13.5px;margin-bottom:22px}
+label{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);margin-bottom:7px;font-weight:700}
+input{
+  width:100%;background:var(--black);border:1px solid var(--line);border-radius:5px;
+  padding:13px 14px;font-size:16px;color:var(--white);outline:none;transition:border-color .15s;
+}
+input:focus{border-color:var(--green)}
+button{
+  width:100%;margin-top:18px;background:var(--green);color:#fff;border:none;cursor:pointer;
+  font-family:var(--display);font-weight:900;text-transform:uppercase;letter-spacing:.05em;
+  font-size:14px;padding:15px;border-radius:5px;box-shadow:0 3px 0 var(--deep-green);
+  transition:transform .1s,box-shadow .1s;
+}
+button:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--deep-green)}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--deep-green)}
+.err{color:#ef6d6d;font-size:13px;margin-top:13px;display:none;text-align:center}
+.err.on{display:block}
+</style>
+</head>
+<body>
+  <form class="box" id="f">
+    <div class="brand">
+      <img src="assets/logo.png" alt="">
+      <b><span class="e">Elite</span> <span class="l">Level</span><br><span class="s">Sales</span> CRM</b>
+    </div>
+    <h1>Sign in</h1>
+    <p class="sub">This CRM holds client contact details. Access is restricted.</p>
+
+    <label for="pw">Password</label>
+    <input type="password" id="pw" autocomplete="current-password" autofocus required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="err">Wrong password</p>
+  </form>
+
+<script>
+document.getElementById('f').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  var err = document.getElementById('err');
+  err.classList.remove('on');
+  try {
+    var r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('pw').value })
+    });
+    if (r.ok) { location.href = '/'; return; }
+    err.textContent = (await r.json()).error || 'Wrong password';
+  } catch (_) {
+    err.textContent = 'Could not reach the server';
+  }
+  err.classList.add('on');
+  document.getElementById('pw').select();
+});
+</script>
+</body>
+</html>

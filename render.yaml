@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: els-crm
+    env: node
+    plan: starter            # a persistent disk requires a paid plan
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: els-crm-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: APP_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        sync: false

@@ -1,0 +1,13 @@
+{
+  "name": "els-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Elite Level Sales CRM - lead pipeline, automated SMS, click-to-call, weekly reporting",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
