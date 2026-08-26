@@ -57,7 +57,8 @@ const App = {
     const jobs = { dashboard: 'loadStats', pipeline: 'loadBoard', contacts: 'loadContacts',
                    messages: 'loadMessages', automations: 'loadAutomations',
                    templates: 'loadTemplates', settings: 'loadSettings',
-                   reports: 'loadReport' };
+                   reports: 'loadReport', team: 'loadTeam' };
+    this.whoami();
     await this.loadMode();
     if (jobs[this.view]) await this[jobs[this.view]]();
   },
@@ -543,6 +544,114 @@ const App = {
 
   exportCsv() {
     window.location = '/api/reports/weekly.csv' + (this.week ? '?start=' + this.week : '');
+  },
+
+  /* ------------------------------------------------------- team & access */
+  async whoami() {
+    try {
+      const r = await fetch('/api/auth/me');
+      if (!r.ok) return;
+      const { user } = await r.json();
+      this.me = user;
+      document.getElementById('whoami').innerHTML = `
+        <div style="margin-bottom:7px">
+          <b style="color:var(--white)">${esc(user.name || user.email)}</b>
+          ${user.role === 'admin' ? '<span class="tag warn" style="margin-left:6px">Admin</span>' : ''}
+          <div style="font-size:11.5px;margin-top:2px">${esc(user.email)}</div>
+        </div>
+        <button class="btn ghost sm" onclick="App.signOut()">Sign out</button>`;
+
+      // Only admins can act on the queue; hide the tab for everyone else.
+      const tab = document.querySelector('#nav button[data-view="team"]');
+      if (tab) tab.style.display = user.role === 'admin' ? '' : 'none';
+      if (user.role === 'admin') this.pendingBadge();
+    } catch (_) { /* not signed in yet */ }
+  },
+
+  async pendingBadge() {
+    try {
+      const users = await api.get('/api/auth/users');
+      const n = users.filter(u => u.status === 'pending').length;
+      const dot = document.getElementById('pendingDot');
+      if (dot) dot.innerHTML = n
+        ? `<span class="tag bad" style="margin-left:6px">${n}</span>` : '';
+    } catch (_) {}
+  },
+
+  async signOut() {
+    await api.post('/api/auth/logout');
+    location.href = '/';
+  },
+
+  async loadTeam() {
+    const users = await api.get('/api/auth/users');
+    if (users.error) {
+      document.getElementById('teamRows').innerHTML =
+        `<tr><td colspan="6"><p class="empty">${esc(users.error)}</p></td></tr>`;
+      return;
+    }
+
+    const pending = users.filter(u => u.status === 'pending');
+    document.getElementById('teamPending').innerHTML = pending.length ? `
+      <div class="card" style="border-color:var(--shield-gold)">
+        <h3 style="font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;color:var(--gold)">
+          ${pending.length} waiting for approval</h3>
+        ${pending.map(u => `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;
+                      padding:11px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+            <div>
+              <b>${esc(u.name || '—')}</b>
+              <div class="small muted">${esc(u.email)} · asked ${when(u.created_at)}</div>
+            </div>
+            <div style="display:flex;gap:7px">
+              <button class="btn sm" onclick="App.setUserStatus(${u.id},'approved')">Approve</button>
+              <button class="btn danger sm" onclick="App.setUserStatus(${u.id},'rejected')">Reject</button>
+            </div>
+          </div>`).join('')}
+      </div>` : `<div class="banner live">No requests waiting.</div>`;
+
+    document.getElementById('teamRows').innerHTML = users.map(u => `
+      <tr>
+        <td><b>${esc(u.name || '—')}</b></td>
+        <td class="small muted">${esc(u.email)}</td>
+        <td><span class="tag ${u.status === 'approved' ? 'ok' : u.status === 'pending' ? 'warn' : 'bad'}">${u.status}</span></td>
+        <td>
+          <select onchange="App.setUserRole(${u.id},this.value)" style="padding:6px 8px;font-size:13px">
+            <option value="member" ${u.role === 'member' ? 'selected' : ''}>member</option>
+            <option value="admin"  ${u.role === 'admin'  ? 'selected' : ''}>admin</option>
+          </select>
+        </td>
+        <td class="small muted">${u.last_login ? when(u.last_login) : 'never'}</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${u.status === 'approved'
+            ? `<button class="btn ghost sm" onclick="App.setUserStatus(${u.id},'disabled')">Disable</button>`
+            : `<button class="btn ghost sm" onclick="App.setUserStatus(${u.id},'approved')">Approve</button>`}
+          ${this.me && this.me.id === u.id ? ''
+            : `<button class="btn danger sm" style="margin-left:6px" onclick="App.delUser(${u.id})">Delete</button>`}
+        </td>
+      </tr>`).join('');
+  },
+
+  async setUserStatus(id, status) {
+    const r = await api.patch('/api/auth/users/' + id, { status });
+    if (r.error) return this.toast(r.error, true);
+    this.toast(status === 'approved' ? 'Approved — they can sign in now' : `Set to ${status}`);
+    this.loadTeam(); this.pendingBadge();
+  },
+
+  async setUserRole(id, role) {
+    const r = await api.patch('/api/auth/users/' + id, { role });
+    if (r.error) { this.toast(r.error, true); return this.loadTeam(); }
+    this.toast(`Role set to ${role}`);
+    this.loadTeam();
+  },
+
+  async delUser(id) {
+    if (!confirm('Delete this account? They lose access immediately.')) return;
+    const r = await api.del('/api/auth/users/' + id);
+    if (r.error) return this.toast(r.error, true);
+    this.toast('Account deleted');
+    this.loadTeam(); this.pendingBadge();
   }
 };
 

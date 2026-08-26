@@ -22,11 +22,10 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 /* ------------------------------------------------------------------- auth
-   Single shared password, set via APP_PASSWORD. If unset the app runs open —
-   fine on localhost, never in public. Sessions are stateless: a signed cookie
-   carrying only an expiry, so a restart doesn't log everyone out. */
-const APP_PASSWORD = process.env.APP_PASSWORD || '';
-const SESSION_DAYS = 14;
+   Accounts live in auth.js. Anyone can request access; nobody gets in until
+   an admin approves them. ADMIN_EMAIL decides who may claim the very first
+   (admin) account — without it, whoever signs up first would become admin. */
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
 const SECRET_FILE = path.join(DATA_DIR, 'session.key');
 if (!fs.existsSync(SECRET_FILE)) {
@@ -34,29 +33,7 @@ if (!fs.existsSync(SECRET_FILE)) {
 }
 const SESSION_SECRET = process.env.SESSION_SECRET || fs.readFileSync(SECRET_FILE, 'utf8').trim();
 
-function signSession(expMs) {
-  const payload = Buffer.from(JSON.stringify({ exp: expMs })).toString('base64url');
-  const mac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
-  return `${payload}.${mac}`;
-}
-function validSession(token) {
-  if (!token || !token.includes('.')) return false;
-  const [payload, mac] = token.split('.');
-  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
-  if (mac.length !== expect.length) return false;                 // timingSafeEqual throws on length mismatch
-  if (!crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expect))) return false;
-  try { return JSON.parse(Buffer.from(payload, 'base64url').toString()).exp > Date.now(); }
-  catch { return false; }
-}
-function cookies(req) {
-  return Object.fromEntries((req.headers.cookie || '').split(';')
-    .map(c => c.trim().split('='))
-    .filter(p => p[0])
-    .map(p => [p[0], decodeURIComponent(p.slice(1).join('='))]));
-}
-/* Twilio can't log in, so its webhooks stay open. Everything else is gated. */
-const OPEN_PATHS = new Set(['/api/login', '/health',
-  '/api/webhooks/twilio/inbound', '/api/webhooks/twilio/voice-status']);
+/* Sessions, password hashing and the approval queue all live in auth.js. */
 
 /* ---------------------------------------------------------------- database */
 const db = new DatabaseSync(path.join(DATA_DIR, 'crm.db'));
@@ -833,6 +810,14 @@ async function api(req, res, url) {
 }
 
 /* ------------------------------------------------------------------ server */
+/* json() and readBody() are function declarations, so they're hoisted and
+   available to the auth module even though they're defined further up. */
+const auth = require('./auth')({
+  db, json, readBody,
+  sessionSecret: SESSION_SECRET,
+  adminEmail: ADMIN_EMAIL
+});
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
@@ -845,27 +830,11 @@ http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok: true, uptime: Math.round(process.uptime()) }));
     }
 
-    /* Login */
-    if (p === '/api/login' && req.method === 'POST') {
-      const b = await readBody(req);
-      const given = Buffer.from(String(b.password || ''));
-      const real = Buffer.from(APP_PASSWORD);
-      const ok = APP_PASSWORD &&
-                 given.length === real.length &&
-                 crypto.timingSafeEqual(given, real);
-      if (!ok) {
-        await new Promise(r => setTimeout(r, 600));      // slow down guessing
-        return json(res, 401, { error: 'Wrong password' });
-      }
-      const token = signSession(Date.now() + SESSION_DAYS * 86400000);
-      const secure = (req.headers['x-forwarded-proto'] === 'https') ? ' Secure;' : '';
-      res.setHeader('Set-Cookie',
-        `els_session=${token}; HttpOnly; SameSite=Lax; Path=/;${secure} Max-Age=${SESSION_DAYS * 86400}`);
-      return json(res, 200, { ok: true });
-    }
+    /* Sign up, sign in, sign out, and the admin approval queue. */
+    if (await auth.routes(req, res, url)) return;
 
-    /* Gate everything else once a password is configured. */
-    if (APP_PASSWORD && !OPEN_PATHS.has(p) && !validSession(cookies(req).els_session)) {
+    /* Everything else needs an approved account. */
+    if (!auth.OPEN_PATHS.has(p) && !auth.sessionUser(req)) {
       if (p.startsWith('/api/')) return json(res, 401, { error: 'Not signed in' });
       return serveStatic(res, '/login.html');
     }
@@ -878,12 +847,13 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   const s = allSettings();
+  const users = auth.userCount();
   console.log(`\n  ELITE LEVEL SALES — CRM`);
   console.log(`  http://localhost:${PORT}`);
   console.log(`  SMS mode: ${s.dry_run === '1' ? 'DRY RUN (nothing is actually sent)' : 'LIVE via Twilio'}`);
   console.log(`  Quiet hours: ${s.quiet_start}:00 - ${s.quiet_end}:00`);
   console.log(`  Data dir: ${DATA_DIR}`);
-  console.log(APP_PASSWORD
-    ? `  Auth: password required\n`
-    : `  Auth: OPEN — no APP_PASSWORD set. Do not expose this to the internet.\n`);
+  console.log(users === 0
+    ? `  Accounts: none yet — the first sign-up${ADMIN_EMAIL ? ` from ${ADMIN_EMAIL}` : ''} becomes admin\n`
+    : `  Accounts: ${users} total, ${auth.pendingCount()} awaiting your approval\n`);
 });

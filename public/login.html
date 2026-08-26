@@ -11,82 +11,149 @@
 <style>
 :root{
   --red:#CC1E1E; --gold:#E8C040; --green:#22AA22; --deep-green:#167016;
-  --card:#1A1A1A; --black:#0A0A0A;
+  --card:#1A1A1A; --card-mid:#222; --black:#0A0A0A;
   --white:#FFF; --grey:#888; --line:rgba(255,255,255,.09);
   --display:'Montserrat',Impact,sans-serif;
   --body:Carlito,Calibri,'Segoe UI',system-ui,sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family:var(--body);background:var(--black);color:var(--white);
-  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
-}
-body::before{
-  content:"";position:fixed;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse at 50% 30%,rgba(232,192,64,.09),transparent 60%);
-}
-.box{
-  position:relative;background:var(--card);border:1px solid var(--line);
-  border-radius:11px;padding:38px 34px;width:100%;max-width:390px;
-  box-shadow:0 30px 80px rgba(0,0,0,.7);
-}
-.brand{display:flex;align-items:center;gap:13px;margin-bottom:26px}
-.brand img{width:78px;height:auto}
-.brand b{font-family:var(--display);font-weight:900;font-size:12px;line-height:1.25;text-transform:uppercase;letter-spacing:.03em}
+body{font-family:var(--body);background:var(--black);color:var(--white);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 30%,rgba(232,192,64,.09),transparent 60%)}
+.box{position:relative;background:var(--card);border:1px solid var(--line);
+  border-radius:11px;padding:36px 32px;width:100%;max-width:400px;
+  box-shadow:0 30px 80px rgba(0,0,0,.7)}
+.brand{display:flex;align-items:center;gap:13px;margin-bottom:24px}
+.brand img{width:74px;height:auto}
+.brand b{font-family:var(--display);font-weight:900;font-size:11.5px;line-height:1.25;
+  text-transform:uppercase;letter-spacing:.03em}
 .brand .e{color:var(--red)}.brand .l{color:var(--gold)}.brand .s{color:var(--green)}
-h1{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:20px;margin-bottom:6px}
-p.sub{color:var(--grey);font-size:13.5px;margin-bottom:22px}
-label{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);margin-bottom:7px;font-weight:700}
-input{
-  width:100%;background:var(--black);border:1px solid var(--line);border-radius:5px;
-  padding:13px 14px;font-size:16px;color:var(--white);outline:none;transition:border-color .15s;
-}
+
+.tabs{display:flex;gap:6px;background:var(--black);padding:4px;border-radius:7px;margin-bottom:22px}
+.tabs button{flex:1;padding:9px;border:none;background:none;cursor:pointer;color:var(--grey);
+  font-family:var(--body);font-size:13px;font-weight:700;border-radius:5px;transition:.15s}
+.tabs button.on{background:var(--card-mid);color:var(--white)}
+
+h1{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:19px;margin-bottom:5px}
+p.sub{color:var(--grey);font-size:13px;margin-bottom:20px;line-height:1.55}
+label{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:6px;font-weight:700}
+.field{margin-bottom:13px}
+input{width:100%;background:var(--black);border:1px solid var(--line);border-radius:5px;
+  padding:12px 13px;font-size:16px;color:var(--white);outline:none;transition:border-color .15s}
 input:focus{border-color:var(--green)}
-button{
-  width:100%;margin-top:18px;background:var(--green);color:#fff;border:none;cursor:pointer;
+button.go{width:100%;margin-top:8px;background:var(--green);color:#fff;border:none;cursor:pointer;
   font-family:var(--display);font-weight:900;text-transform:uppercase;letter-spacing:.05em;
-  font-size:14px;padding:15px;border-radius:5px;box-shadow:0 3px 0 var(--deep-green);
-  transition:transform .1s,box-shadow .1s;
-}
-button:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--deep-green)}
-button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--deep-green)}
-.err{color:#ef6d6d;font-size:13px;margin-top:13px;display:none;text-align:center}
-.err.on{display:block}
+  font-size:13.5px;padding:14px;border-radius:5px;box-shadow:0 3px 0 var(--deep-green);
+  transition:transform .1s,box-shadow .1s}
+button.go:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--deep-green)}
+button.go:active{transform:translateY(2px);box-shadow:0 1px 0 var(--deep-green)}
+.msg{font-size:13px;margin-top:14px;text-align:center;display:none;line-height:1.55}
+.msg.on{display:block}
+.msg.err{color:#ef6d6d}
+.msg.ok{color:var(--green)}
+.hint{font-size:11.5px;color:var(--grey);margin-top:7px}
+form{display:none}form.on{display:block}
 </style>
 </head>
 <body>
-  <form class="box" id="f">
+  <div class="box">
     <div class="brand">
       <img src="assets/logo.png" alt="">
       <b><span class="e">Elite</span> <span class="l">Level</span><br><span class="s">Sales</span> CRM</b>
     </div>
-    <h1>Sign in</h1>
-    <p class="sub">This CRM holds client contact details. Access is restricted.</p>
 
-    <label for="pw">Password</label>
-    <input type="password" id="pw" autocomplete="current-password" autofocus required>
-    <button type="submit">Sign in</button>
-    <p class="err" id="err">Wrong password</p>
-  </form>
+    <div class="tabs">
+      <button id="tabIn" class="on" onclick="mode('in')">Sign in</button>
+      <button id="tabUp" onclick="mode('up')">Request access</button>
+    </div>
+
+    <!-- SIGN IN -->
+    <form id="fIn" class="on">
+      <h1>Sign in</h1>
+      <p class="sub">This CRM holds client contact details. Access is restricted.</p>
+      <div class="field"><label for="e1">Email</label>
+        <input type="email" id="e1" autocomplete="email" autofocus required></div>
+      <div class="field"><label for="p1">Password</label>
+        <input type="password" id="p1" autocomplete="current-password" required></div>
+      <button class="go" type="submit">Sign in</button>
+    </form>
+
+    <!-- REQUEST ACCESS -->
+    <form id="fUp">
+      <h1>Request access</h1>
+      <p class="sub">Your request goes to an admin. You'll be able to sign in once it's approved.</p>
+      <div class="field"><label for="n2">Full name</label>
+        <input type="text" id="n2" autocomplete="name" required></div>
+      <div class="field"><label for="e2">Email</label>
+        <input type="email" id="e2" autocomplete="email" required></div>
+      <div class="field"><label for="p2">Choose a password</label>
+        <input type="password" id="p2" autocomplete="new-password" required>
+        <p class="hint">At least 8 characters.</p></div>
+      <button class="go" type="submit">Request access</button>
+    </form>
+
+    <p class="msg" id="msg"></p>
+  </div>
 
 <script>
-document.getElementById('f').addEventListener('submit', async function (e) {
+var msg = document.getElementById('msg');
+
+function mode(m) {
+  var isIn = m === 'in';
+  document.getElementById('fIn').classList.toggle('on', isIn);
+  document.getElementById('fUp').classList.toggle('on', !isIn);
+  document.getElementById('tabIn').classList.toggle('on', isIn);
+  document.getElementById('tabUp').classList.toggle('on', !isIn);
+  msg.className = 'msg';
+}
+
+function show(text, ok) {
+  msg.textContent = text;
+  msg.className = 'msg on ' + (ok ? 'ok' : 'err');
+}
+
+async function post(url, body) {
+  var r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return { ok: r.ok, data: await r.json().catch(function () { return {}; }) };
+}
+
+document.getElementById('fIn').addEventListener('submit', async function (e) {
   e.preventDefault();
-  var err = document.getElementById('err');
-  err.classList.remove('on');
+  msg.className = 'msg';
   try {
-    var r = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: document.getElementById('pw').value })
+    var r = await post('/api/auth/login', {
+      email: document.getElementById('e1').value,
+      password: document.getElementById('p1').value
     });
     if (r.ok) { location.href = '/'; return; }
-    err.textContent = (await r.json()).error || 'Wrong password';
-  } catch (_) {
-    err.textContent = 'Could not reach the server';
-  }
-  err.classList.add('on');
-  document.getElementById('pw').select();
+    show(r.data.error || 'Could not sign you in', false);
+  } catch (_) { show('Could not reach the server', false); }
+});
+
+document.getElementById('fUp').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  msg.className = 'msg';
+  try {
+    var r = await post('/api/auth/signup', {
+      name: document.getElementById('n2').value,
+      email: document.getElementById('e2').value,
+      password: document.getElementById('p2').value
+    });
+    if (!r.ok) { show(r.data.error || 'Could not send your request', false); return; }
+    if (r.data.admin) {
+      show('Admin account created. Signing you in…', true);
+      setTimeout(function () { location.href = '/'; }, 900);
+    } else {
+      show('Request sent. You can sign in once an admin approves it.', true);
+      document.getElementById('fUp').reset();
+    }
+  } catch (_) { show('Could not reach the server', false); }
 });
 </script>
 </body>
