@@ -276,7 +276,16 @@ module.exports = function createIntegrations(ctx) {
       return true;
     }
     if (verdict === null) {
-      console.warn(`[${source}] accepted UNVERIFIED — no signing secret set in Settings. ` +
+      /* No signing secret configured. Tolerated locally so the endpoint can be
+         exercised during setup, but refused in production — an unauthenticated
+         public write endpoint is exactly how fake leads get injected. */
+      if (process.env.NODE_ENV === 'production') {
+        console.error(`[${source}] REFUSED — no signing secret configured. ` +
+                      `Set one in Settings (or ${source.toUpperCase()}_SECRET) before going live.`);
+        json(res, 503, { error: 'Webhook not configured' });
+        return true;
+      }
+      console.warn(`[${source}] accepted UNVERIFIED — no signing secret set. ` +
                    `Anyone who knows this URL can post leads.`);
     }
 

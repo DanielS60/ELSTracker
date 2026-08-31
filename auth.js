@@ -223,6 +223,17 @@ module.exports = function createAuth({ db, json, readBody, sessionSecret, adminE
           return true;
         }
 
+        /* Both columns drive authorisation decisions, so neither may be free
+           text — an unrecognised value would silently mean "not approved". */
+        const USER_STATUSES = ['pending', 'approved', 'rejected', 'disabled'];
+        const USER_ROLES = ['admin', 'member'];
+        if (b.status !== undefined && !USER_STATUSES.includes(b.status)) {
+          json(res, 400, { error: 'Unknown status' }); return true;
+        }
+        if (b.role !== undefined && !USER_ROLES.includes(b.role)) {
+          json(res, 400, { error: 'Unknown role' }); return true;
+        }
+
         if (b.status) {
           db.prepare('UPDATE users SET status=?, approved_at=?, approved_by=? WHERE id=?')
             .run(b.status, b.status === 'approved' ? nowISO() : null, me.email, uid);

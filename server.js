@@ -141,9 +141,32 @@ const DEFAULT_SETTINGS = {
   calendly_secret: ''            // signing key from the Calendly webhook subscription
 };
 
+/* Credentials may be supplied as environment variables instead of being
+   stored in the database at all. The env value always wins, so on a hosted
+   deployment the secrets live in the platform's secret store and never touch
+   crm.db — which matters because the database is what gets backed up, copied
+   about, and mounted on a shared volume. */
+const ENV_SETTING = {
+  twilio_account_sid: 'TWILIO_ACCOUNT_SID',
+  twilio_auth_token:  'TWILIO_AUTH_TOKEN',
+  twilio_from:        'TWILIO_FROM',
+  agent_phone:        'AGENT_PHONE',
+  typeform_secret:    'TYPEFORM_SECRET',
+  calendly_secret:    'CALENDLY_SECRET'
+};
+
 function getSetting(key) {
+  const envKey = ENV_SETTING[key];
+  if (envKey && process.env[envKey]) return process.env[envKey];
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row ? row.value : (DEFAULT_SETTINGS[key] ?? '');
+}
+
+/** True when a value comes from the environment — the UI shows those as
+    locked rather than pretending they can be edited in Settings. */
+function isEnvManaged(key) {
+  const envKey = ENV_SETTING[key];
+  return !!(envKey && process.env[envKey]);
 }
 function setSetting(key, value) {
   db.prepare(`INSERT INTO settings (key,value) VALUES (?,?)
@@ -430,9 +453,10 @@ async function api(req, res, url) {
     const info = db.prepare(
       `INSERT INTO contacts (first_name,last_name,phone,email,status,source,notes,tags,consent_sms,created_at,updated_at)
        VALUES (?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(b.first_name.trim(), (b.last_name || '').trim(), normalisePhone(b.phone),
-          (b.email || '').trim(), b.status || 'New', b.source || '', b.notes || '',
-          b.tags || '', b.consent_sms === false ? 0 : 1, t, t);
+    ).run(sec.str(b.first_name, 80), sec.str(b.last_name, 80), normalisePhone(b.phone),
+          sec.str(b.email, 200), sec.enumOr(b.status, STATUSES) || 'New',
+          sec.str(b.source, 80), sec.str(b.notes, 20000),
+          sec.str(b.tags, 200), b.consent_sms === false ? 0 : 1, t, t);
 
     const contact = db.prepare('SELECT * FROM contacts WHERE id=?').get(info.lastInsertRowid);
     const queued = fireTriggers('contact_created', contact);
@@ -453,13 +477,23 @@ async function api(req, res, url) {
     if (!before) return json(res, 404, { error: 'not found' });
 
     const fields = ['first_name','last_name','phone','email','status','source','notes','tags','consent_sms','opted_out'];
+    const CAPS = { first_name:80, last_name:80, email:200, source:80, tags:200, notes:20000 };
     const sets = [], args = [];
     for (const f of fields) {
-      if (b[f] === undefined) continue;
+      if (!Object.hasOwn(b, f)) continue;
+
+      /* status reaches the UI inside a class attribute, so it must be one of
+         the known stages — never free text. */
+      if (f === 'status') {
+        const s = sec.enumOr(b.status, STATUSES);
+        if (s === undefined) return json(res, 400, { error: 'Unknown status' });
+        sets.push('status=?'); args.push(s);
+        continue;
+      }
       sets.push(`${f}=?`);
       args.push(f === 'phone' ? normalisePhone(b[f])
               : (f === 'consent_sms' || f === 'opted_out') ? (b[f] ? 1 : 0)
-              : b[f]);
+              : sec.str(b[f], CAPS[f] || 500));
     }
     if (sets.length) {
       sets.push('updated_at=?'); args.push(nowISO(), id());
@@ -583,7 +617,14 @@ async function api(req, res, url) {
 
   if (p === '/api/settings' && m === 'GET') {
     const s = allSettings();
+    /* Reflect the value actually in force, which may come from the
+       environment rather than the database — otherwise a secret supplied as
+       an env var looks unset, and someone re-enters it into crm.db. */
+    for (const k of Object.keys(DEFAULT_SETTINGS)) {
+      if (isEnvManaged(k)) s[k] = getSetting(k);
+    }
     for (const k of SECRET_KEYS) s[k] = s[k] ? '••••••••' : '';
+    s.env_managed = Object.keys(DEFAULT_SETTINGS).filter(isEnvManaged);
     return json(res, 200, s);
   }
   if (p === '/api/settings' && m === 'POST') {
@@ -830,10 +871,20 @@ const integrations = require('./integrations')({
   db, json, getSetting, nowISO, normalisePhone, fireTriggers, tick
 });
 
+const sec = require('./security');
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
+
+  sec.applyHeaders(req, res);
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
+  /* CSRF defence in depth. SameSite=Lax already stops cross-site cookie POSTs;
+     this rejects any state-changing request carrying a foreign Origin. */
+  if (['POST', 'PATCH', 'DELETE'].includes(req.method) && !sec.sameOrigin(req)) {
+    return json(res, 403, { error: 'Cross-origin request refused' });
+  }
 
   try {
     /* Health check — hosts poll this to decide if the container is alive. */
@@ -858,8 +909,7 @@ http.createServer(async (req, res) => {
     if (p.startsWith('/api/')) return await api(req, res, url);
     return serveStatic(res, p);
   } catch (e) {
-    console.error(e);
-    return json(res, 500, { error: e.message });
+    return json(res, 500, { error: sec.safeError(e, 'request') });
   }
 }).listen(PORT, () => {
   const s = allSettings();

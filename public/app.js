@@ -139,7 +139,7 @@ const App = {
         <tr onclick="App.openContact(${c.id})">
           <td><b>${esc(c.first_name)} ${esc(c.last_name)}</b></td>
           <td class="mono">${esc(c.phone)}</td>
-          <td><span class="pill s-${c.status}">${c.status}</span></td>
+          <td><span class="pill s-${esc(c.status)}">${esc(c.status)}</span></td>
           <td class="small muted">${esc(c.source) || '—'}</td>
           <td>${c.opted_out ? '<span class="tag bad">Opted out</span>'
                             : c.consent_sms ? '<span class="tag ok">OK</span>'
@@ -161,7 +161,7 @@ const App = {
           <td><span class="tag">${m.direction === 'out' ? '→' : '←'}</span></td>
           <td class="small" style="max-width:340px">${esc(m.body)}
               ${m.error ? `<div class="small" style="color:#ef6d6d;margin-top:4px">${esc(m.error)}</div>` : ''}</td>
-          <td><span class="tag ${cls[m.status] ?? ''}">${m.status}</span></td>
+          <td><span class="tag ${cls[m.status] ?? ''}">${esc(m.status)}</span></td>
           <td>${m.status === 'queued'
                 ? `<button class="btn ghost sm" onclick="event.stopPropagation();App.cancelMsg(${m.id})">Cancel</button>` : ''}</td>
         </tr>`).join('')
