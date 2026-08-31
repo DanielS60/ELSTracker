@@ -41,6 +41,10 @@ const App = {
 
     document.getElementById('hookUrl').textContent =
       location.origin + '/api/webhooks/twilio/inbound';
+    document.getElementById('tfUrl').textContent =
+      location.origin + '/api/webhooks/typeform';
+    document.getElementById('calUrl').textContent =
+      location.origin + '/api/webhooks/calendly';
 
     await this.refresh();
     setInterval(() => { if (this.view === 'dashboard' || this.view === 'messages') this.refresh(); }, 15000);
@@ -300,6 +304,8 @@ const App = {
     document.getElementById('set_qs').value    = s.quiet_start;
     document.getElementById('set_qe').value    = s.quiet_end;
     document.getElementById('set_agent').value = s.agent_phone || '';
+    document.getElementById('set_tfsec').value = s.typeform_secret || '';
+    document.getElementById('set_calsec').value = s.calendly_secret || '';
   },
 
   async saveSettings() {
@@ -310,7 +316,9 @@ const App = {
       dry_run:            document.getElementById('set_dry').value,
       quiet_start:        document.getElementById('set_qs').value,
       quiet_end:          document.getElementById('set_qe').value,
-      agent_phone:        document.getElementById('set_agent').value.trim()
+      agent_phone:        document.getElementById('set_agent').value.trim(),
+      typeform_secret:    document.getElementById('set_tfsec').value.trim(),
+      calendly_secret:    document.getElementById('set_calsec').value.trim()
     });
     this.toast('Settings saved'); this.loadMode();
   },

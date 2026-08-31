@@ -355,6 +355,18 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
             <p class="counter">Click-to-call rings this phone, you answer, then it dials the lead and bridges you.</p></div>
           <p class="small muted">Inbound webhook — point your Twilio number's "A message comes in" at:<br>
             <span class="mono" id="hookUrl"></span><br>This is what makes STOP work automatically.</p>
+          <hr>
+          <h3 style="font-family:var(--display);font-size:var(--fs-sm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">Typeform &amp; Calendly</h3>
+          <div class="field"><label for="set_tfsec">Typeform signing secret</label>
+            <input id="set_tfsec" type="password" placeholder="from Typeform → Connect → Webhooks">
+            <p class="counter">Webhook URL: <span class="mono" id="tfUrl"></span></p></div>
+          <div class="field"><label for="set_calsec">Calendly signing key</label>
+            <input id="set_calsec" type="password" placeholder="returned when you create the subscription">
+            <p class="counter">Webhook URL: <span class="mono" id="calUrl"></span></p></div>
+          <p class="small muted">Answers from either are appended to the lead's notes. A Calendly
+            booking also moves the lead to <b>Booked</b>, which fires the show-up reminders.
+            Leave a secret blank and that webhook is accepted <b>unverified</b> — anyone who
+            knows the URL could post leads.</p>
         </div>
         <div class="card">
           <h3 style="font-family:var(--display);font-size:var(--fs-sm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">Sending</h3>

@@ -136,7 +136,9 @@ const DEFAULT_SETTINGS = {
   quiet_start: '21',
   quiet_end: '9',
   business_name: 'Elite Level Sales',
-  agent_phone: ''                // your mobile — rings first on click-to-call
+  agent_phone: '',               // your mobile — rings first on click-to-call
+  typeform_secret: '',           // HMAC secret from Typeform's webhook settings
+  calendly_secret: ''            // signing key from the Calendly webhook subscription
 };
 
 function getSetting(key) {
@@ -575,15 +577,19 @@ async function api(req, res, url) {
     return json(res, 200, { ok: true });
   }
 
+  /* Secrets are never echoed back to the browser — the UI shows a mask, and a
+     value still wearing that mask on save means "unchanged", so it's skipped. */
+  const SECRET_KEYS = ['twilio_auth_token', 'typeform_secret', 'calendly_secret'];
+
   if (p === '/api/settings' && m === 'GET') {
     const s = allSettings();
-    s.twilio_auth_token = s.twilio_auth_token ? '••••••••' : '';  // never echo the token
+    for (const k of SECRET_KEYS) s[k] = s[k] ? '••••••••' : '';
     return json(res, 200, s);
   }
   if (p === '/api/settings' && m === 'POST') {
     const b = await readBody(req);
     for (const [k, v] of Object.entries(b)) {
-      if (k === 'twilio_auth_token' && String(v).startsWith('••')) continue;
+      if (SECRET_KEYS.includes(k) && String(v).startsWith('••')) continue;
       if (k in DEFAULT_SETTINGS) setSetting(k, v);
     }
     return json(res, 200, { ok: true });
@@ -818,6 +824,12 @@ const auth = require('./auth')({
   adminEmail: ADMIN_EMAIL
 });
 
+/* Typeform + Calendly. These post their own signed payloads, so they read the
+   raw body themselves rather than going through readBody(). */
+const integrations = require('./integrations')({
+  db, json, getSetting, nowISO, normalisePhone, fireTriggers, tick
+});
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
@@ -832,6 +844,10 @@ http.createServer(async (req, res) => {
 
     /* Sign up, sign in, sign out, and the admin approval queue. */
     if (await auth.routes(req, res, url)) return;
+
+    /* Typeform / Calendly. Checked before the session gate — they authenticate
+       with an HMAC signature instead, since neither service can log in. */
+    if (await integrations.routes(req, res, url)) return;
 
     /* Everything else needs an approved account. */
     if (!auth.OPEN_PATHS.has(p) && !auth.sessionUser(req)) {
