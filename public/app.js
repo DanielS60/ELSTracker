@@ -117,16 +117,123 @@ const App = {
     this.contacts = await api.get('/api/contacts');
     document.getElementById('board').innerHTML = STATUSES.map(st => {
       const rows = this.contacts.filter(c => c.status === st);
-      return `<div class="col">
-        <h3>${st}<em>${rows.length}</em></h3>
+      return `<div class="col" data-status="${st}">
+        <h3>${st}<em data-count>${rows.length}</em></h3>
+        <div class="col-body">
         ${rows.map(c => `
-          <div class="lead" onclick="App.openContact(${c.id})">
+          <div class="lead" draggable="true" data-id="${c.id}" tabindex="0"
+               role="button" aria-label="${esc(c.first_name)} ${esc(c.last_name)}, ${esc(c.status)}">
             <b>${esc(c.first_name)} ${esc(c.last_name)}</b>
             <small>${esc(c.phone)}</small>
             ${c.opted_out ? '<span class="tag bad" style="margin-top:6px">Opted out</span>' : ''}
-          </div>`).join('') || '<p class="small muted" style="padding:6px">Empty</p>'}
+          </div>`).join('') || '<p class="drop-hint">Drop here</p>'}
+        </div>
       </div>`;
     }).join('');
+    this.wireBoard();
+  },
+
+  /* Drag and drop, wired by delegation so re-rendering the board never leaves
+     orphaned listeners behind.
+
+     Dragging is never the only way to move a lead — the stage dropdown in the
+     contact drawer does the same thing. That matters for keyboard and touch
+     users, and it's a WCAG requirement rather than a nicety. */
+  wireBoard() {
+    const board = document.getElementById('board');
+    if (!board || board.dataset.wired) return;
+    board.dataset.wired = '1';
+
+    board.addEventListener('dragstart', e => {
+      const card = e.target.closest('.lead');
+      if (!card) return;
+      this.dragId = Number(card.dataset.id);
+      this.didDrag = true;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+    });
+
+    board.addEventListener('dragend', () => {
+      board.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+      board.querySelectorAll('.col.over').forEach(el => el.classList.remove('over'));
+      // Swallow the click that follows a drag, then re-arm.
+      setTimeout(() => { this.didDrag = false; }, 60);
+    });
+
+    board.addEventListener('dragover', e => {
+      const col = e.target.closest('.col');
+      if (!col) return;
+      e.preventDefault();                       // required to allow a drop
+      e.dataTransfer.dropEffect = 'move';
+      if (!col.classList.contains('over')) {
+        board.querySelectorAll('.col.over').forEach(el => el.classList.remove('over'));
+        col.classList.add('over');
+      }
+    });
+
+    board.addEventListener('dragleave', e => {
+      const col = e.target.closest('.col');
+      if (col && !col.contains(e.relatedTarget)) col.classList.remove('over');
+    });
+
+    board.addEventListener('drop', async e => {
+      const col = e.target.closest('.col');
+      if (!col) return;
+      e.preventDefault();
+      col.classList.remove('over');
+
+      const id = Number(e.dataTransfer.getData('text/plain') || this.dragId);
+      const status = col.dataset.status;
+      const card = board.querySelector(`.lead[data-id="${id}"]`);
+      if (!card || !status) return;
+      if (card.closest('.col') === col) return;   // dropped back where it started
+
+      // Move it straight away so the board feels responsive, then confirm.
+      const body = col.querySelector('.col-body');
+      const hint = body.querySelector('.drop-hint');
+      if (hint) hint.remove();
+      body.appendChild(card);
+      card.classList.remove('dragging');
+      this.recount();
+
+      const r = await api.patch('/api/contacts/' + id, { status });
+      if (r.error) {
+        this.toast(r.error, true);
+        return this.loadBoard();                 // server refused — put it back
+      }
+      this.toast(r.queued
+        ? `Moved to ${status} — ${r.queued} message(s) queued`
+        : `Moved to ${status}`);
+    });
+
+    // Click opens the lead, unless that click was the tail end of a drag.
+    board.addEventListener('click', e => {
+      const card = e.target.closest('.lead');
+      if (card && !this.didDrag) this.openContact(Number(card.dataset.id));
+    });
+
+    // Keyboard equivalent for opening a card.
+    board.addEventListener('keydown', e => {
+      const card = e.target.closest('.lead');
+      if (card && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        this.openContact(Number(card.dataset.id));
+      }
+    });
+  },
+
+  /** Refresh per-column counts after a card moves. */
+  recount() {
+    document.querySelectorAll('#board .col').forEach(col => {
+      const n = col.querySelectorAll('.lead').length;
+      const badge = col.querySelector('[data-count]');
+      if (badge) badge.textContent = n;
+      const body = col.querySelector('.col-body');
+      if (!n && body && !body.querySelector('.drop-hint')) {
+        body.insertAdjacentHTML('beforeend', '<p class="drop-hint">Drop here</p>');
+      }
+    });
   },
 
   /* -------------------------------------------------------------- contacts */

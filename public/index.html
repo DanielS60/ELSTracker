@@ -170,9 +170,17 @@ textarea{resize:vertical;min-height:84px;line-height:1.6}
 .col h3{font-family:var(--display);font-weight:900;font-size:var(--fs-xs);letter-spacing:.1em;text-transform:uppercase;
   margin-bottom:11px;display:flex;justify-content:space-between;align-items:center}
 .col h3 em{font-style:normal;color:var(--grey);font-size:var(--fs-xs)}
+.col-body{min-height:70px}
 .lead{background:var(--card-mid);border:1px solid var(--line);border-radius:7px;padding:11px;margin-bottom:8px;
-  cursor:pointer;transition:border-color .15s,transform .1s}
+  cursor:grab;transition:border-color .15s,transform .1s,opacity .15s}
 .lead:hover{border-color:var(--shield-gold);transform:translateY(-2px)}
+.lead:active{cursor:grabbing}
+.lead.dragging{opacity:.4;border-style:dashed;border-color:var(--gold);transform:none}
+/* Drop target uses an outline as well as a tint, so it doesn't rely on
+   colour alone to signal where the card will land. */
+.col.over{border-color:var(--green);background:rgba(34,170,34,.07)}
+.col.over .col-body{outline:2px dashed rgba(34,170,34,.55);outline-offset:4px;border-radius:6px}
+.drop-hint{padding:14px 6px;text-align:center;color:#5c5c5c;font-size:var(--fs-xs)}
 .lead b{font-size:var(--fs-sm);display:block}
 .lead small{color:var(--grey);font-size:var(--fs-xs)}
 
