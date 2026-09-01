@@ -279,6 +279,23 @@ async function sendViaTwilio(to, body) {
     };
   }
 
+  /* Catch malformed credentials before they turn into a confusing gateway
+     error. A bad SID corrupts the request path and Twilio's edge answers
+     with HTML, not the JSON error you'd expect. */
+  if (!/^AC[0-9a-fA-F]{32}$/.test(sid)) {
+    return { ok: false, error:
+      'Account SID looks wrong. It must start with "AC" and be 34 characters — ' +
+      `got ${sid.length} character(s) starting "${sid.slice(0, 4)}". ` +
+      'Check you did not paste the Auth Token or an API Key SID into that field.' };
+  }
+  if (!/^\+\d{7,15}$/.test(from)) {
+    return { ok: false, error:
+      `From number must be in full international form, e.g. +353871234567 — got "${from}".` };
+  }
+  if (!/^\+\d{7,15}$/.test(to)) {
+    return { ok: false, error: `Destination number is not valid E.164 — got "${to}".` };
+  }
+
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: 'POST',
     headers: {
@@ -288,8 +305,21 @@ async function sendViaTwilio(to, body) {
     body: new URLSearchParams({ To: to, From: from, Body: body })
   });
 
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) return { ok: false, error: json.message || `Twilio HTTP ${res.status}` };
+  /* Read the body as text first — a non-JSON response (HTML error page,
+     proxy failure) would otherwise be discarded and reported as a bare
+     status code, which is impossible to act on. */
+  const raw = await res.text().catch(() => '');
+  let json = {};
+  try { json = raw ? JSON.parse(raw) : {}; } catch { /* not JSON */ }
+
+  if (!res.ok) {
+    const detail = json.message
+      ? [json.code ? `[${json.code}]` : '', json.message,
+         json.more_info ? `(${json.more_info})` : ''].filter(Boolean).join(' ')
+      : `Twilio HTTP ${res.status} — ${raw.replace(/\s+/g, ' ').slice(0, 200) || 'empty response'}`;
+    console.error('[twilio] send failed:', res.status, raw.slice(0, 500));
+    return { ok: false, error: detail };
+  }
   return { ok: true, simulated: false, sid: json.sid || '' };
 }
 
