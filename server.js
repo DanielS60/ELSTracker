@@ -718,22 +718,50 @@ async function api(req, res, url) {
     const twimlUrl = `${base}/api/twiml/dial?to=${encodeURIComponent(lead)}`
                    + `&name=${encodeURIComponent(safeName)}&call=${callId}&sig=${sig}`;
 
-    try {
-      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
+    /* Trial accounts reject some optional parameters. Try the full request
+       first, and if Twilio complains about parameters, retry with only the
+       three that actually place a call. On trial you then lose the duration
+       callback; on a paid account the first attempt succeeds and you keep it. */
+    const auth64 = Buffer.from(`${sid}:${token}`).toString('base64');
+    const callsUrl = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`;
+
+    async function placeCall(withCallbacks) {
+      const params = { To: agent, From: from, Url: twimlUrl, Method: 'GET' };
+      if (withCallbacks) {
+        params.StatusCallback = `${base}/api/webhooks/twilio/voice-status?call_id=${callId}`;
+        params.StatusCallbackEvent = 'completed';
+      }
+      const r = await fetch(callsUrl, {
         method: 'POST',
-        headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+        headers: { Authorization: 'Basic ' + auth64,
                    'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          To: agent, From: from, Url: twimlUrl, Method: 'GET',
-          StatusCallback: `${base}/api/webhooks/twilio/voice-status?call_id=${callId}`,
-          StatusCallbackEvent: 'completed'
-        })
+        body: new URLSearchParams(params)
       });
-      const j = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) };
+    }
+
+    try {
+      let attempt = await placeCall(true);
+
+      const looksLikeParamIssue = !attempt.ok &&
+        /parameter|trial account/i.test(String(attempt.body.message || ''));
+      if (looksLikeParamIssue) {
+        console.warn('[dial] Twilio rejected the optional parameters, retrying minimal:',
+                     attempt.body.code, attempt.body.message);
+        attempt = await placeCall(false);
+        if (attempt.ok) console.warn('[dial] minimal request succeeded — no call-duration callback on this account');
+      }
+
+      const r = { ok: attempt.ok, status: attempt.status };
+      const j = attempt.body;
       if (!r.ok) {
+        /* Include Twilio's own code and doc link — "invalid parameters" alone
+           is not enough to act on. */
+        const detail = [j.code ? `[${j.code}]` : '', j.message || `Twilio HTTP ${r.status}`,
+                        j.more_info ? `(${j.more_info})` : ''].filter(Boolean).join(' ');
         db.prepare(`UPDATE calls SET status='failed', error=? WHERE id=?`)
-          .run(String(j.message || 'Twilio HTTP ' + r.status).slice(0, 300), callId);
-        return json(res, 400, { error: j.message || 'Twilio HTTP ' + r.status });
+          .run(detail.slice(0, 300), callId);
+        return json(res, 400, { error: detail });
       }
       db.prepare(`UPDATE calls SET provider_sid=?, status='ringing' WHERE id=?`).run(j.sid || '', callId);
       return json(res, 200, { ok: true, call_id: callId, sid: j.sid,
