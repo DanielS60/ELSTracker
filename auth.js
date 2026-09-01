@@ -260,7 +260,8 @@ module.exports = function createAuth({ db, json, readBody, sessionSecret, adminE
   const OPEN_PATHS = new Set([
     '/health',
     '/api/auth/login', '/api/auth/signup', '/api/auth/me', '/api/auth/logout',
-    '/api/webhooks/twilio/inbound', '/api/webhooks/twilio/voice-status'
+    '/api/webhooks/twilio/inbound', '/api/webhooks/twilio/voice-status',
+    '/api/twiml/dial'          // Twilio fetches this mid-call; HMAC-signed instead
   ]);
 
   const pendingCount = () => db.prepare(`SELECT COUNT(*) c FROM users WHERE status='pending'`).get().c;

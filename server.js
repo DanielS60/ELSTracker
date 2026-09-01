@@ -699,9 +699,24 @@ async function api(req, res, url) {
     }
 
     const base = (req.headers['x-forwarded-proto'] || 'http') + '://' + req.headers.host;
-    const safeName = String(c.first_name).replace(/[<>&"']/g, '');
-    const twiml = `<Response><Say voice="alice">Connecting you to ${safeName}</Say>`
-                + `<Dial callerId="${from}" timeout="25">${lead}</Dial></Response>`;
+    /* Twilio blocks the inline `Twiml` parameter on trial accounts, so the call
+       instructions are served from /api/twiml/dial and passed as `Url` instead.
+       That works on every account tier — but Twilio has to be able to fetch it,
+       so the dialler needs a publicly reachable address. */
+    if (/^(localhost|127\.|\[?::1)/.test(req.headers.host || '')) {
+      db.prepare(`UPDATE calls SET status='failed', error=? WHERE id=?`)
+        .run('dialling needs a public URL', callId);
+      return json(res, 400, {
+        error: 'Calling needs a public address — Twilio fetches the call instructions from this '
+             + 'server, and it cannot reach localhost. Run "ngrok http 4300" and open the CRM on '
+             + 'the ngrok URL, or deploy it. Texting works fine on localhost.' });
+    }
+
+    const safeName = String(c.first_name).replace(/[<>&"']/g, '').slice(0, 40);
+    const sig = crypto.createHmac('sha256', SESSION_SECRET)
+      .update(lead + '|' + callId).digest('hex').slice(0, 32);
+    const twimlUrl = `${base}/api/twiml/dial?to=${encodeURIComponent(lead)}`
+                   + `&name=${encodeURIComponent(safeName)}&call=${callId}&sig=${sig}`;
 
     try {
       const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
@@ -709,7 +724,7 @@ async function api(req, res, url) {
         headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
                    'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          To: agent, From: from, Twiml: twiml,
+          To: agent, From: from, Url: twimlUrl, Method: 'GET',
           StatusCallback: `${base}/api/webhooks/twilio/voice-status?call_id=${callId}`,
           StatusCallbackEvent: 'completed'
         })
@@ -748,6 +763,34 @@ async function api(req, res, url) {
       .run(b.outcome ?? null, b.notes ?? null,
            b.duration_seconds === undefined ? null : Number(b.duration_seconds), id());
     return json(res, 200, { ok: true });
+  }
+
+  /* Call instructions, fetched by Twilio when it answers the agent's leg.
+     Necessarily public — Twilio can't sign in — so the URL carries an HMAC.
+     Without that, anyone could make this bridge a call to any number they
+     liked, including premium-rate ones, on your account. */
+  if (p === '/api/twiml/dial' && (m === 'GET' || m === 'POST')) {
+    const to   = url.searchParams.get('to') || '';
+    const name = url.searchParams.get('name') || '';
+    const call = url.searchParams.get('call') || '';
+    const sig  = url.searchParams.get('sig') || '';
+
+    const expect = crypto.createHmac('sha256', SESSION_SECRET)
+      .update(to + '|' + call).digest('hex').slice(0, 32);
+    const ok = sig.length === expect.length &&
+               crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect));
+
+    res.writeHead(200, { 'Content-Type': 'text/xml' });
+    if (!ok) {
+      console.warn('[twiml] refused: bad signature');
+      return res.end('<Response><Say>This call could not be authorised.</Say><Hangup/></Response>');
+    }
+
+    const callerId = getSetting('twilio_from').trim();
+    const safe = String(name).replace(/[<>&"']/g, '');
+    return res.end(
+      `<Response><Say voice="alice">Connecting you to ${safe}</Say>` +
+      `<Dial callerId="${callerId}" timeout="25">${to.replace(/[^\d+]/g, '')}</Dial></Response>`);
   }
 
   /* Twilio posts here when the call ends, with the real duration. */
