@@ -6,7 +6,7 @@ of lead data is one of the more common findings against small businesses.
 
 | Data | Keep for | Why | Enforced by |
 |---|---|---|---|
-| Applicant who never joined | **[24] months** from last contact | Realistic window for a lead to come back | CRM `retention_days` |
+| Applicant who never joined | **60 days** from last contact | Realistic window for a lead to come back | CRM `retention_days` |
 | Member record | Membership + **[24] months** | Support, disputes, testimonials | Manual |
 | SMS content and delivery status | **[24] months** | Prove what was sent and consented to | Deleted with the contact |
 | Call metadata | **[24] months** | Same | Deleted with the contact |
@@ -17,7 +17,7 @@ of lead data is one of the more common findings against small businesses.
 
 ## Turning it on
 
-CRM → **Settings → retention_days**. Set to `730` for 24 months. The sweep runs
+CRM → **Settings → retention_days**. Set to `60`. The sweep runs
 hourly and only removes contacts in **New** or **Lost** that haven't been
 touched since the cutoff — live deals and members are never swept by a timer.
 

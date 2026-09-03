@@ -19,7 +19,7 @@ This is the first document a regulator asks for. Keep it current.
 | **Source** | Website form, Typeform, Calendly, manual entry |
 | **Recipients** | Typeform, Calendly, Railway |
 | **Transfers** | US — Calendly, Railway (see doc 03) |
-| **Retention** | [24] months from last contact |
+| **Retention** | 60 days from last contact |
 | **Security** | Password auth with approval, TLS, encrypted at rest by host, audit log |
 
 ## Activity 2 — SMS marketing and follow-up
@@ -32,7 +32,7 @@ This is the first document a regulator asks for. Keep it current.
 | **Lawful basis** | **Art. 6(1)(a) consent** + ePrivacy Reg. 13 |
 | **Recipients** | Twilio, then mobile carriers |
 | **Transfers** | US — Twilio |
-| **Retention** | [24] months; consent record kept as evidence |
+| **Retention** | 60 days; opt-outs carried to the suppression list |
 | **Safeguards** | Consent recorded at capture; STOP handled automatically and cancels queued messages; quiet hours 21:00–09:00 |
 
 ## Activity 3 — Outbound calling

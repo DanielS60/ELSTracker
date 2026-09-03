@@ -68,7 +68,7 @@ We do not sell your data, and we do not share it for anyone else's marketing.
 
 ### How long we keep it
 
-- **Applicants who don't join:** **[24]** months after our last contact
+- **Applicants who don't join:** **60 days** after our last contact
 - **Members:** for the duration of the programme, then **[24]** months
 - **Financial records:** 6 years, as tax law requires
 - **Call recordings, if enabled:** **[90]** days
