@@ -138,7 +138,8 @@ const DEFAULT_SETTINGS = {
   business_name: 'Elite Level Sales',
   agent_phone: '',               // your mobile — rings first on click-to-call
   typeform_secret: '',           // HMAC secret from Typeform's webhook settings
-  calendly_secret: ''            // signing key from the Calendly webhook subscription
+  calendly_secret: '',           // signing key from the Calendly webhook subscription
+  retention_days: '0'            // auto-delete dormant leads after N days; 0 = never
 };
 
 /* Credentials may be supplied as environment variables instead of being
@@ -479,6 +480,13 @@ async function api(req, res, url) {
   if (p === '/api/contacts' && m === 'POST') {
     const b = await readBody(req);
     if (!b.first_name || !b.phone) return json(res, 400, { error: 'first_name and phone are required' });
+
+    /* Someone who exercised their right to erasure must not be silently
+       re-added by an import or a webhook. */
+    if (gdpr.isSuppressed(b.phone, b.email)) {
+      return json(res, 409, {
+        error: 'This person previously requested erasure and cannot be re-added.' });
+    }
     const t = nowISO();
     const info = db.prepare(
       `INSERT INTO contacts (first_name,last_name,phone,email,status,source,notes,tags,consent_sms,created_at,updated_at)
@@ -489,6 +497,15 @@ async function api(req, res, url) {
           sec.str(b.tags, 200), b.consent_sms === false ? 0 : 1, t, t);
 
     const contact = db.prepare('SELECT * FROM contacts WHERE id=?').get(info.lastInsertRowid);
+
+    /* Record the basis on which we may contact them, at the moment it arose.
+       Art. 7 requires being able to demonstrate this later. */
+    gdpr.recordConsent(contact.id,
+      contact.consent_sms ? 'given' : 'recorded',
+      'consent',
+      sec.str(b.source, 80) || 'manual entry',
+      contact.consent_sms ? 'SMS consent indicated at capture' : 'no SMS consent indicated');
+
     const queued = fireTriggers('contact_created', contact);
     tick();
     return json(res, 201, { contact, queued });
@@ -974,6 +991,11 @@ const integrations = require('./integrations')({
 
 const sec = require('./security');
 
+/* Subject rights, consent records, retention and the audit trail. */
+const gdpr = require('./gdpr')({
+  db, json, getSetting, nowISO, normalisePhone, readBody
+});
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
@@ -996,6 +1018,13 @@ http.createServer(async (req, res) => {
 
     /* Sign up, sign in, sign out, and the admin approval queue. */
     if (await auth.routes(req, res, url)) return;
+
+    /* Subject access, erasure, consent and the audit log. Behind the session
+       gate — these expose or destroy personal data. */
+    {
+      const me = auth.sessionUser(req);
+      if (me && await gdpr.routes(req, res, url, me)) return;
+    }
 
     /* Typeform / Calendly. Checked before the session gate — they authenticate
        with an HMAC signature instead, since neither service can log in. */
