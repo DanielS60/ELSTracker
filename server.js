@@ -796,7 +796,15 @@ async function api(req, res, url) {
         console.warn('[dial] Twilio rejected the optional parameters, retrying minimal:',
                      attempt.body.code, attempt.body.message);
         attempt = await placeCall(false);
-        if (attempt.ok) console.warn('[dial] minimal request succeeded — no call-duration callback on this account');
+        if (attempt.ok) {
+          console.warn('[dial] minimal request succeeded — no call-duration callback on this account');
+        } else {
+          /* Both shapes refused. Log the second response in full: only
+             To/From/Url/Method were sent, so the cause is the account rather
+             than an optional parameter we could drop. */
+          console.error('[dial] minimal request ALSO refused:', attempt.status,
+                        JSON.stringify(attempt.body).slice(0, 400));
+        }
       }
 
       const r = { ok: attempt.ok, status: attempt.status };
